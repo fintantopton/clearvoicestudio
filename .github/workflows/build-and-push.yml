@@ -4,9 +4,8 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Opt into Node.js 24 NOW to avoid deprecation warnings
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Fix Node 20 deprecation
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,16 +13,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
+      - name: Login to Docker Hub (explicit registry + correct Docker user)
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }} # Must be Docker PAT, NOT your password
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }} # = kyliejenner
+          password: ${{ secrets.DOCKER_PASSWORD }} # = Docker Read & Write PAT
 
-      - name: Build and push
+      - name: Build and push (correct Docker tag)
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: fintantopton/clearvoicestudio:latest
-          platforms: linux/amd64 # GitHub Actions runs amd64; Apple Silicon will pull this
+          tags: kyliejenner/clearvoicestudio:latest # ✅ Docker username, not GitHub
+          platforms: linux/amd64
+          build-args: BUILDKIT_PROGRESS=plain # Show full pip logs if needed
