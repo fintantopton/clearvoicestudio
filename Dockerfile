@@ -1,20 +1,31 @@
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+# Base: CUDA 12.1 Ubuntu 22.04 (matches your torch index-url)
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3 python3-pip python3-venv \
-    ffmpeg git openssh-server \
-    libsndfile1-dev build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Set non-interactive & Python env
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Upgrade pip
-RUN python3 -m pip install --upgrade pip
+# Install system dependencies (critical for clearvoice/whisper audio)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-dev \
+    build-essential libsndfile1-dev ffmpeg git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Install PyTorch with CUDA 12.1 FIRST (this is important)
-RUN python3 -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Upgrade pip, setuptools, wheel (fix resolver issues)
+RUN python3 -m pip install --upgrade pip setuptools wheel
 
-# Now install clearvoice + streamlit
+# Step 1: Install PyTorch CUDA 12.1 FIRST (force GPU wheels)
+RUN python3 -m pip install --no-cache-dir \
+    torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Step 2: Install clearvoice + streamlit (separate, no torch conflict)
 RUN python3 -m pip install --no-cache-dir clearvoice streamlit
 
 WORKDIR /app
+# Optional: Add your Streamlit app entrypoint
+# COPY app.py .
+# CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 CMD ["sleep", "infinity"]
